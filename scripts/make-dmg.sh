@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # 配布用のdmgを作る。
 #
-# 重要: この dmg を「社内ファイルサーバー」や「USBメモリ」経由で渡すこと。
-# ブラウザやメール、AirDropで渡すと com.apple.quarantine 属性が付き、
-# 未署名アプリはGatekeeperにブロックされて起動できない（macOS 26で確認済み）。
-# 隔離属性が付かない経路で配れば、署名なしのままダブルクリックで起動する。
+# 配布方針: Google Driveに置き、受け取る人に初回だけ起動を許可してもらう。
+# ブラウザでダウンロードすると com.apple.quarantine 属性が付くため、
+# 公証していないアプリは初回にシステム設定での許可が必要になる。
+# dmgと docs/インストール手順.md を必ずセットで配ること。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -28,5 +28,8 @@ rm -rf "$STAGE"
 
 echo
 echo "作成しました: $DMG"
-echo "配布方法: 社内ファイルサーバーまたはUSBメモリでコピーしてください。"
-echo "（ブラウザ/メール/AirDrop経由だと隔離属性が付いて起動できません）"
+echo
+echo "Google Driveには次の2点をセットで置いてください:"
+echo "  1. $DMG"
+echo "  2. docs/インストール手順.md"
+echo "（手順書がないと、受け取った人は初回の警告で詰まります）"
