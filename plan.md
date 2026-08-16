@@ -49,11 +49,11 @@ Tests/
 
 ## TDDステップ
 
-1. [ ] ZipCommand: 引数組み立て（単一ファイル / 複数 / フォルダ=-r / パスワード=-P / 相対パス化のためのworkingDirectory）
-2. [ ] OutputPathResolver: zip名の決定（単一→`<name>.zip`、複数→共通親フォルダ名 or `アーカイブ.zip`）、既存時の連番
-3. [ ] ZipProgressParser: `adding: ...` 行のカウント→進捗率
-4. [ ] FileCounter: フォルダ再帰のファイル数カウント
-5. [ ] ZipRunner: 実際に /usr/bin/zip を叩く統合テスト（tempディレクトリで往復確認）
+1. [x] ZipCommand: 引数組み立て（単一ファイル / 複数 / フォルダ=-r / パスワード=-P / 相対パス化のためのworkingDirectory）
+2. [x] OutputPathResolver: zip名の決定（単一→`<name>.zip`、複数→共通親フォルダ名 or `アーカイブ.zip`）、既存時の連番
+3. [x] ZipProgressParser: `adding: ...` 行のカウント→進捗率
+4. [x] FileCounter: フォルダ再帰のファイル数カウント
+5. [x] ZipRunner: 実際に /usr/bin/zip を叩く統合テスト（tempディレクトリで往復確認）
 6. [ ] SwiftUI層: ドロップ→圧縮→完了 のフロー（手動確認）
 7. [ ] アプリバンドル化スクリプト（scripts/make-app.sh）
 
