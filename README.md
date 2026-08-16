@@ -86,7 +86,16 @@ xcrun stapler staple build/KantanZip.dmg
 
 ## 同梱ソフトウェア
 
-zip圧縮には [7-Zip](https://www.7-zip.org/) の公式macOS CLI（`7zz`）を同梱しています。
-7-Zip は LGPL-2.1+（一部 BSD ライセンス、一部 unRAR ライセンス制限）で配布されています。
-ライセンス全文はアプリバンドル内の `Contents/Resources/7zz-License.txt`
-および [Vendor/7zz/License.txt](Vendor/7zz/License.txt) を参照してください。
+このアプリは **[7-Zip](https://www.7-zip.org/) のコードを使用しています。**
+7-Zip の公式 macOS CLI（`7zz`、未改変）をそのまま同梱しています。
+
+- 7-Zip は **GNU LGPL** で配布されています（一部 BSD ライセンス、一部 unRAR ライセンス制限）
+- 配布元: https://www.7-zip.org/
+- ライセンス全文: アプリバンドル内 `Contents/Resources/7zz-License.txt`、
+  リポジトリでは [Vendor/7zz/License.txt](Vendor/7zz/License.txt)
+- 対応ソースの入手先: [Vendor/7zz/SOURCE.md](Vendor/7zz/SOURCE.md)
+
+7zz はアプリ本体とリンクせず別プロセスとして呼び出しているため、
+本体のソース公開義務は生じません。ただし LGPL のバイナリを再配布する以上、
+上記のライセンス表示と対応ソースの提供手段は必要です。
+（一般的な理解であり法的助言ではありません。社外配布時は法務確認を推奨します）
