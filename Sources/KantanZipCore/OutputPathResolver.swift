@@ -9,7 +9,12 @@ public enum OutputPathResolver {
         if inputs.count == 1 {
             candidate = input.deletingPathExtension().appendingPathExtension("zip")
         } else {
-            candidate = input.deletingLastPathComponent().appendingPathComponent("アーカイブ.zip")
+            // 複数選択時は「アーカイブ.zip」より、まとめた中身が推測できる
+            // 親フォルダ名のほうが分かりやすい（例: 案件A/ の中身 → 案件A.zip）
+            let parent = input.deletingLastPathComponent()
+            let parentName = parent.lastPathComponent
+            let baseName = parentName.isEmpty || parentName == "/" ? "アーカイブ" : parentName
+            candidate = parent.appendingPathComponent("\(baseName).zip")
         }
         return avoidingCollision(candidate, fileExists: fileExists)
     }
