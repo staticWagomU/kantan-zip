@@ -54,8 +54,8 @@ Tests/
 3. [x] ZipProgressParser: `adding: ...` 行のカウント→進捗率
 4. [x] FileCounter: フォルダ再帰のファイル数カウント
 5. [x] ZipRunner: 実際に /usr/bin/zip を叩く統合テスト（tempディレクトリで往復確認）
-6. [ ] SwiftUI層: ドロップ→圧縮→完了 のフロー（手動確認）
-7. [ ] アプリバンドル化スクリプト（scripts/make-app.sh）
+6. [x] SwiftUI層: ドロップ→圧縮→完了 のフロー（手動確認）
+7. [x] アプリバンドル化スクリプト（scripts/make-app.sh）
 
 ## 配布手順（将来）
 

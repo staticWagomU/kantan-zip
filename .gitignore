@@ -4,3 +4,4 @@ xcuserdata/
 DerivedData/
 *.app
 .DS_Store
+build/
