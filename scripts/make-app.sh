@@ -40,4 +40,12 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
+# Info.plistを書いた後に必ず再署名する。
+# リンカが付けるad-hoc署名はバンドル構成前のものなので、そのままだと
+# "code has no resources but signature indicates they must be present" で
+# 署名が壊れた状態になる。Apple Siliconはad-hoc署名すら無いと起動できない。
+# 署名IDは環境変数 CODESIGN_ID で上書きできる（既定はad-hoc）。
+codesign --force --deep --sign "${CODESIGN_ID:--}" "$APP"
+
 echo "作成しました: $APP"
+codesign -dv "$APP" 2>&1 | grep -E "^Signature|^TeamIdentifier" || true
