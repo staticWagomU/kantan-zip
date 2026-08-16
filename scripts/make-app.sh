@@ -22,6 +22,10 @@ cp Vendor/7zz/7zz "$APP/Contents/Resources/7zz"
 cp Vendor/7zz/License.txt "$APP/Contents/Resources/7zz-License.txt"
 chmod +x "$APP/Contents/Resources/7zz"
 
+# アイコン。未生成なら作る（CoreGraphicsで描くので外部依存はない）
+[ -f Resources/AppIcon.icns ] || swift scripts/make-icon.swift
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -29,6 +33,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <dict>
     <key>CFBundleExecutable</key>
     <string>KantanZip</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>com.staticwagomu.kantanzip</string>
     <key>CFBundleName</key>
