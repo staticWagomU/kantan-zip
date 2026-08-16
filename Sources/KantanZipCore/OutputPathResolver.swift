@@ -5,6 +5,9 @@ import Foundation
 public enum OutputPathResolver {
     public static func resolve(inputs: [URL], fileExists: (URL) -> Bool) -> URL {
         let input = inputs[0]
-        return input.deletingPathExtension().appendingPathExtension("zip")
+        if inputs.count == 1 {
+            return input.deletingPathExtension().appendingPathExtension("zip")
+        }
+        return input.deletingLastPathComponent().appendingPathComponent("アーカイブ.zip")
     }
 }

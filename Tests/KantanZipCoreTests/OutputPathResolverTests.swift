@@ -9,4 +9,15 @@ final class OutputPathResolverTests: XCTestCase {
 
         XCTAssertEqual(output.path, "/Users/taro/Documents/report.zip")
     }
+
+    func test_複数ファイルはアーカイブという名前のzipを作る() {
+        let inputs = [
+            URL(fileURLWithPath: "/Users/taro/Documents/report.txt"),
+            URL(fileURLWithPath: "/Users/taro/Documents/photos", isDirectory: true),
+        ]
+
+        let output = OutputPathResolver.resolve(inputs: inputs, fileExists: { _ in false })
+
+        XCTAssertEqual(output.path, "/Users/taro/Documents/アーカイブ.zip")
+    }
 }
