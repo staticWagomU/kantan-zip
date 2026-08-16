@@ -17,7 +17,7 @@ macOS用のzip圧縮GUIアプリ。社内の非IT技術者に配布する実用�
 | 進捗 | `7zz -bsp1` が出力するパーセンテージをそのまま使う（バイト数ベース） |
 | 出力先 | デフォルトは元ファイルと同じ場所（同名は連番 `name 2.zip`）、設定で保存ダイアログに切替可 |
 | UI言語 | 日本語 |
-| 配布 | 隔離属性が付かない経路（社内共有フォルダ・USB）でdmgを配る。将来的にDeveloper ID署名+公証 |
+| 配布 | Google Driveで配るためDeveloper ID署名+公証が必要（$99/年）。dmg形式 |
 
 ### 7zz を同梱する理由
 
@@ -86,8 +86,20 @@ scripts/
 6. [x] SwiftUI層: ドロップ→圧縮→完了 のフロー（手動確認）
 7. [x] アプリバンドル化スクリプト（scripts/make-app.sh）
 
-## 配布手順（将来）
+## 配布手順
 
-- Apple Developer Program 加入後、Developer ID Application 証明書で codesign
-- `xcrun notarytool submit` で公証 → staple
-- zipに固めて社内配布
+配布先はGoogle Drive。ブラウザでダウンロードした時点で隔離属性が付くため、
+公証が必須（実機検証: 隔離属性ありの未署名アプリはmacOS 26でブロックされる）。
+
+1. Apple Developer Program 加入（$99/年）
+2. Developer ID Application 証明書を作成しキーチェーンに入れる
+3. `xcrun notarytool store-credentials` で認証情報を保存
+4. `CODESIGN_ID=... scripts/make-app.sh` → `scripts/make-dmg.sh` → `scripts/notarize.sh`
+
+未加入の間の暫定策は、社内共有フォルダかUSBで配ること（隔離属性が付かない）。
+ただしGoogle Driveに置き直された時点で破綻するので恒久策にはならない。
+
+### 残タスク
+
+- [ ] Apple Developer Program 加入 → 公証フローを実際に通す
+- [ ] アプリアイコンの追加

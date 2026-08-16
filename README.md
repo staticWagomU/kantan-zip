@@ -32,9 +32,27 @@ scripts/make-dmg.sh    # build/KantanZip.dmg を作成
 ## 配布方法
 
 macOSのGatekeeperは **`com.apple.quarantine`（隔離）属性が付いたファイルにだけ** 働きます。
-そのため配布経路さえ選べば、Apple Developer Program（年間99ドル）なしで配れます。
+つまり「どう配るか」で必要な手続きが変わります。
 
-### 推奨: 社内ファイルサーバーまたはUSBメモリで配る
+### Google Drive で配るなら公証（notarization）が必要
+
+**ブラウザでダウンロードした時点で隔離属性が付く**ため、署名なしのアプリは
+ダウンロードした人の環境で起動できません。Apple Developer Program（年間99ドル）に
+加入して公証を通すのが唯一の現実的な解です。
+
+```sh
+CODESIGN_ID="Developer ID Application: NAME (TEAMID)" scripts/make-app.sh
+scripts/make-dmg.sh
+NOTARY_PROFILE=kantanzip scripts/notarize.sh
+```
+
+初回の準備手順は [scripts/notarize.sh](scripts/notarize.sh) の冒頭コメントを参照。
+公証さえ通れば、受け取る人は「ダウンロード → ダブルクリック → ドラッグ」だけで、
+警告は一切出ません。
+
+### 費用をかけない場合: 社内ファイルサーバーまたはUSBメモリで配る
+
+Google Drive をやめて、隔離属性が付かない経路で配る方法です。
 
 ```sh
 scripts/make-app.sh
@@ -42,38 +60,29 @@ scripts/make-dmg.sh
 # build/KantanZip.dmg を社内共有フォルダに置く、またはUSBメモリにコピーする
 ```
 
-受け取る人の手順は「dmgをダブルクリック → アプリをアプリケーションフォルダにドラッグ →
-ダブルクリックで起動」だけです。警告は出ません。
+こちらも受け取る人の手順はダブルクリックとドラッグだけで、警告は出ません。
+ただし配布経路を全員に守ってもらう必要があり、誰かがブラウザ経由で共有し直すと
+そこで破綻します。
+
+### 配布経路と隔離属性の対応
 
 | 配布経路 | 隔離属性 | 未署名アプリの起動 |
 |---|---|---|
 | 社内ファイルサーバー（SMB共有）からコピー | 付かない | できる |
 | USBメモリ・外付けディスク | 付かない | できる |
-| ブラウザでダウンロード | **付く** | **ブロックされる** |
+| **Google Drive（ブラウザでダウンロード）** | **付く** | **ブロックされる** |
 | メール添付・AirDrop・Slack等 | **付く** | **ブロックされる** |
 
 macOS 15 Sequoia 以降は、右クリック→「開く」による回避ができなくなり、
 システム設定 →「プライバシーとセキュリティ」→「このまま開く」を辿り、
-管理者パスワードを入力する必要があります。
-非IT技術者には負担が大きいので、隔離属性が付かない経路で配るのが現実的です。
+管理者パスワードを入力する必要があります。非IT技術者には負担が大きく、
+毎回の更新のたびに発生するので、実用的な回避策にはなりません。
 
-**最初の1台で必ず確認してください。** 隔離属性が付くかどうかはファイルサーバーの
-実装（SMBの拡張属性の扱い）によって変わることがあります。配布前に受け取り側の
-Macで次を実行し、何も出力されなければ問題ありません。
+**最初の1台で必ず確認してください。** 隔離属性が付くかどうかは配布経路の実装に
+左右されます。配布前に受け取り側のMacで次を実行し、何も出力されなければ問題ありません。
 
 ```sh
 xattr -l /Applications/KantanZip.app
-```
-
-### 将来: Developer ID署名 + 公証
-
-社外に配る、またはブラウザ経由で配りたくなった場合はこちらが必要です。
-
-```sh
-CODESIGN_ID="Developer ID Application: <YOUR NAME> (<TEAMID>)" scripts/make-app.sh
-scripts/make-dmg.sh
-xcrun notarytool submit build/KantanZip.dmg --keychain-profile <profile> --wait
-xcrun stapler staple build/KantanZip.dmg
 ```
 
 ## セキュリティ上の注意
