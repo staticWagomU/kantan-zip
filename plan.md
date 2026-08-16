@@ -12,36 +12,50 @@ macOS用のzip圧縮GUIアプリ。社内の非IT技術者に配布する実用�
 | 技術 | Swift + SwiftUI、SPM + Xcode併用構成 |
 | 対象OS | macOS 13 Ventura以降 |
 | 入力 | ドラッグ&ドロップ + ファイル選択ダイアログ、複数ファイル/フォルダ→1つのzip |
-| 暗号化 | パスワード付きzip（ZipCrypto方式＝Mac標準アーカイブユーティリティで開ける）。パスワードなしも可 |
-| zip処理 | `/usr/bin/zip` をProcessで呼び出し（`zip -r -P <password>`） |
-| 進捗 | 圧縮中のプログレス表示（事前にファイル数を数え、stdoutの`adding:`行をカウントして割合を出す） |
+| 暗号化 | ZipCrypto（既定・受け取り側がそのまま開ける）と AES-256（強力だが7-Zip等が必要）を選択可 |
+| zip処理 | 同梱した 7-Zip 公式CLI `7zz`（ユニバーサルバイナリ）を Process で呼び出す |
+| 進捗 | `7zz -bsp1` が出力するパーセンテージをそのまま使う（バイト数ベース） |
 | 出力先 | デフォルトは元ファイルと同じ場所（同名は連番 `name 2.zip`）、設定で保存ダイアログに切替可 |
 | UI言語 | 日本語 |
-| 配布 | Developer ID署名 + 公証（App Store外の直接配布） |
+| 配布 | 隔離属性が付かない経路（社内共有フォルダ・USB）でdmgを配る。将来的にDeveloper ID署名+公証 |
+
+### 7zz を同梱する理由
+
+- パスワードを値なしの `-p` で渡し標準入力から流し込めるため、`zip -P` と違い
+  パスワードがプロセス引数（`ps` で見える）に載らない。
+- AES-256 を選べる。`/usr/bin/zip` はZipCryptoしか作れない。
+- 進捗が実際のパーセンテージで取れる。
+- ライセンス: LGPL-2.1+（一部BSD/unRAR制限）。別プロセス実行でリンクしないため
+  本体のソース公開義務は生じないが、License.txt の同梱義務があるので必ず入れる。
 
 ### 割り切り（README に明記する）
 
-- `zip -P` はパスワードがプロセス引数に載るため `ps` で見える理論上のリスクがある。
-  個人のMacで自分が起動するGUIアプリという前提で許容する。
-- ZipCrypto は暗号強度が弱い。互換性（受け取り側がダブルクリックで開ける）を優先した選択で、
-  機密性の高いデータには別手段を推奨する。
+- ZipCrypto は暗号強度が弱い。互換性（受け取り側がダブルクリックで開ける）を優先した既定値で、
+  機密性の高いデータには AES-256 か別手段を推奨する。
+- AES-256 は macOS 標準の unzip / アーカイブユーティリティでは開けない
+  （`need PK compat. v5.1` で失敗することを実機で確認済み）。
 
 ## アーキテクチャ
 
 ```
+Vendor/7zz/           # 同梱する7-Zip公式CLI（fetch-7zz.shで取得、gitで追跡）
 Sources/
   KantanZipCore/        # ロジック層（テスト対象）
-    ZipCommand.swift        # zipコマンドの引数組み立て（純粋関数）
-    OutputPathResolver.swift # 出力先パス決定・同名時の連番
-    ZipProgressParser.swift  # zip stdoutの "adding:" 行から進捗を算出
-    FileCounter.swift        # 圧縮対象のファイル数を事前カウント
-    ZipRunner.swift          # Processで /usr/bin/zip を実行（薄いI/O層）
+    SevenZipCommand.swift       # 7zzの引数組み立て + 暗号化方式（純粋関数）
+    SevenZipProgressParser.swift # 7zz出力の "NN%" から進捗を算出（純粋関数）
+    OutputPathResolver.swift    # 出力先パス決定・同名時の連番（純粋関数）
+    SevenZipRunner.swift        # Processで7zzを実行、パスワードはstdinへ（I/O層）
+    ZipService.swift            # 上記を束ねるファサード
   KantanZipApp/         # SwiftUI層（executable）
     KantanZipApp.swift
-    ContentView.swift       # ドロップゾーン + ファイル選択 + パスワード入力 + 進捗
-    AppSettings.swift       # 出力先モードの設定（UserDefaults）
+    ContentView.swift           # ドロップゾーン + パスワード + 暗号化方式 + 進捗
+    CompressionViewModel.swift  # 圧縮の状態遷移
+    SevenZipLocator.swift       # バンドル内/開発時の7zzパス解決
 Tests/
   KantanZipCoreTests/
+scripts/
+  fetch-7zz.sh          # 7zzをVendorに取り込む
+  make-app.sh           # .app化（7zz同梱 + ad-hoc署名）
 ```
 
 方針: I/O（Process実行・ファイルシステム）を薄い層に隔離し、

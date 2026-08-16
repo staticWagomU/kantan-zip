@@ -46,6 +46,13 @@ struct ContentView: View {
             if viewModel.usePassword {
                 SecureField("パスワード", text: $viewModel.password)
                     .textFieldStyle(.roundedBorder)
+                Toggle("強力な暗号化を使う（AES-256）", isOn: $viewModel.useStrongEncryption)
+                Text(viewModel.useStrongEncryption
+                     ? "開く側に 7-Zip や Keka などのアプリが必要です。Macの標準機能では開けません。"
+                     : "受け取った人がダブルクリックでそのまま開けます。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

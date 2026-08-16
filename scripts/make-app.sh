@@ -6,10 +6,21 @@ cd "$(dirname "$0")/.."
 
 swift build -c release
 
+if [ ! -x Vendor/7zz/7zz ]; then
+  echo "Vendor/7zz/7zz がありません。先に scripts/fetch-7zz.sh を実行してください。" >&2
+  exit 1
+fi
+
 APP=build/KantanZip.app
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/KantanZipApp "$APP/Contents/MacOS/KantanZip"
+
+# 7zzを同梱する。LGPLの「バイナリ配布時はライセンス情報を再掲すること」を
+# 満たすため License.txt も必ず一緒に入れる。
+cp Vendor/7zz/7zz "$APP/Contents/Resources/7zz"
+cp Vendor/7zz/License.txt "$APP/Contents/Resources/7zz-License.txt"
+chmod +x "$APP/Contents/Resources/7zz"
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -45,7 +56,11 @@ PLIST
 # "code has no resources but signature indicates they must be present" で
 # 署名が壊れた状態になる。Apple Siliconはad-hoc署名すら無いと起動できない。
 # 署名IDは環境変数 CODESIGN_ID で上書きできる（既定はad-hoc）。
-codesign --force --deep --sign "${CODESIGN_ID:--}" "$APP"
+# 内側(同梱7zz)から先に署名する。--deepはAppleが非推奨としているため使わない。
+# 同梱バイナリが未署名だと、Apple Siliconで実行できず公証も通らない。
+SIGN_ID="${CODESIGN_ID:--}"
+codesign --force --options runtime --sign "$SIGN_ID" "$APP/Contents/Resources/7zz"
+codesign --force --options runtime --sign "$SIGN_ID" "$APP"
 
 echo "作成しました: $APP"
 codesign -dv "$APP" 2>&1 | grep -E "^Signature|^TeamIdentifier" || true

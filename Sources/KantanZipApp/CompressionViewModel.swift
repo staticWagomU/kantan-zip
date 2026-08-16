@@ -14,13 +14,17 @@ final class CompressionViewModel: ObservableObject {
     @Published var phase: Phase = .idle
     @Published var password = ""
     @Published var usePassword = false
+    @Published var useStrongEncryption = false
 
     /// askOutputLocation: true なら毎回保存ダイアログ、false なら元ファイルと同じ場所
     func compress(urls: [URL], askOutputLocation: Bool) {
         guard !urls.isEmpty else { return }
         if case .compressing = phase { return }
 
-        let effectivePassword = usePassword && !password.isEmpty ? password : nil
+        guard let sevenZip = SevenZipLocator.locate() else {
+            phase = .failed(message: "圧縮プログラム(7zz)が見つかりません。アプリを再インストールしてください。")
+            return
+        }
 
         var outputOverride: URL?
         if askOutputLocation {
@@ -28,12 +32,14 @@ final class CompressionViewModel: ObservableObject {
             outputOverride = chosen
         }
 
+        let encryption = currentEncryption()
         phase = .compressing(progress: 0)
-        Task.detached { [effectivePassword, outputOverride] in
+        Task.detached { [encryption, outputOverride] in
             do {
                 let output = try ZipService.compress(
+                    sevenZipExecutable: sevenZip,
                     inputs: urls,
-                    password: effectivePassword,
+                    encryption: encryption,
                     outputOverride: outputOverride
                 ) { fraction in
                     Task { @MainActor in
@@ -53,6 +59,13 @@ final class CompressionViewModel: ObservableObject {
 
     func reset() {
         phase = .idle
+    }
+
+    private func currentEncryption() -> ZipEncryption {
+        guard usePassword, !password.isEmpty else { return .none }
+        return useStrongEncryption
+            ? .aes256(password: password)
+            : .zipCrypto(password: password)
     }
 
     private func defaultOutput(for urls: [URL]) -> URL {
