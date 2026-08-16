@@ -5,6 +5,7 @@ struct ContentView: View {
     @StateObject private var viewModel = CompressionViewModel()
     @AppStorage("askOutputLocation") private var askOutputLocation = false
     @State private var isDropTargeted = false
+    @State private var isShowingHistory = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -12,9 +13,25 @@ struct ContentView: View {
             passwordSection
             outputSection
             statusSection
+            historyButton
         }
         .padding(24)
         .frame(width: 420)
+        .sheet(isPresented: $isShowingHistory) {
+            HistoryView(viewModel: viewModel)
+        }
+    }
+
+    private var historyButton: some View {
+        HStack {
+            Spacer()
+            Button {
+                isShowingHistory = true
+            } label: {
+                Label("履歴（パスワードの確認）", systemImage: "clock.arrow.circlepath")
+            }
+            .buttonStyle(.link)
+        }
     }
 
     private var dropZone: some View {
@@ -35,7 +52,7 @@ struct ContentView: View {
                 )
         )
         .dropDestination(for: URL.self) { urls, _ in
-            viewModel.compress(urls: urls, askOutputLocation: askOutputLocation)
+            viewModel.compress(urls: urls, alwaysAskOutputLocation: askOutputLocation)
             return true
         } isTargeted: { isDropTargeted = $0 }
     }
@@ -44,8 +61,12 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("パスワードを付ける", isOn: $viewModel.usePassword)
             if viewModel.usePassword {
-                SecureField("パスワード", text: $viewModel.password)
-                    .textFieldStyle(.roundedBorder)
+                HStack(spacing: 8) {
+                    SecureField("パスワード", text: $viewModel.password)
+                        .textFieldStyle(.roundedBorder)
+                    Button("自動生成") { viewModel.generatePassword() }
+                        .help("安全なパスワードを作ってクリップボードにコピーします")
+                }
                 Toggle("強力な暗号化を使う（AES-256）", isOn: $viewModel.useStrongEncryption)
                 Text(viewModel.useStrongEncryption
                      ? "開く側に 7-Zip や Keka などのアプリが必要です。Macの標準機能では開けません。"
@@ -59,8 +80,13 @@ struct ContentView: View {
     }
 
     private var outputSection: some View {
-        Toggle("保存先を毎回選ぶ（オフ: 元のファイルと同じ場所）", isOn: $askOutputLocation)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("保存先とファイル名を毎回選ぶ", isOn: $askOutputLocation)
+            Text("オフでも、複数のファイルをまとめるときは名前を確認します。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -97,7 +123,7 @@ struct ContentView: View {
         panel.allowsMultipleSelection = true
         panel.prompt = "圧縮"
         if panel.runModal() == .OK {
-            viewModel.compress(urls: panel.urls, askOutputLocation: askOutputLocation)
+            viewModel.compress(urls: panel.urls, alwaysAskOutputLocation: askOutputLocation)
         }
     }
 }

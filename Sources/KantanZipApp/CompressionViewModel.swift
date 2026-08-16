@@ -15,9 +15,18 @@ final class CompressionViewModel: ObservableObject {
     @Published var password = ""
     @Published var usePassword = false
     @Published var useStrongEncryption = false
+    @Published private(set) var history: [CompressionRecord] = []
 
-    /// askOutputLocation: true なら毎回保存ダイアログ、false なら元ファイルと同じ場所
-    func compress(urls: [URL], askOutputLocation: Bool) {
+    private let store: HistoryStore
+
+    init(store: HistoryStore = .applicationDefault) {
+        self.store = store
+        self.history = store.records()
+    }
+
+    /// alwaysAskOutputLocation: true なら毎回保存ダイアログを出す。
+    /// falseでも、複数選択時は名前が自明でないのでダイアログを出す。
+    func compress(urls: [URL], alwaysAskOutputLocation: Bool) {
         guard !urls.isEmpty else { return }
         if case .compressing = phase { return }
 
@@ -27,12 +36,13 @@ final class CompressionViewModel: ObservableObject {
         }
 
         var outputOverride: URL?
-        if askOutputLocation {
+        if alwaysAskOutputLocation || urls.count > 1 {
             guard let chosen = promptSaveLocation(defaultURL: defaultOutput(for: urls)) else { return }
             outputOverride = chosen
         }
 
         let encryption = currentEncryption()
+        let recordedPassword = encryption.password
         phase = .compressing(progress: 0)
         Task.detached { [encryption, outputOverride] in
             do {
@@ -46,7 +56,9 @@ final class CompressionViewModel: ObservableObject {
                         self.phase = .compressing(progress: fraction)
                     }
                 }
-                await MainActor.run { self.phase = .done(zipPath: output.path) }
+                await MainActor.run {
+                    self.finish(zipPath: output.path, password: recordedPassword)
+                }
             } catch {
                 await MainActor.run { self.phase = .failed(message: error.localizedDescription) }
             }
@@ -59,6 +71,44 @@ final class CompressionViewModel: ObservableObject {
 
     func reset() {
         phase = .idle
+    }
+
+    func generatePassword() {
+        password = PasswordGenerator.generate()
+        usePassword = true
+        copyToClipboard(password)
+    }
+
+    func copyToClipboard(_ text: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+    }
+
+    // MARK: - 履歴
+
+    func password(for record: CompressionRecord) -> String? {
+        // キーチェーンが読めなくてもアプリを止めたくないのでnilに畳む
+        try? store.password(for: record)
+    }
+
+    func delete(_ record: CompressionRecord) {
+        try? store.delete(record)
+        history = store.records()
+    }
+
+    func deleteAllHistory() {
+        try? store.deleteAll()
+        history = store.records()
+    }
+
+    // MARK: - 内部
+
+    private func finish(zipPath: String, password: String?) {
+        phase = .done(zipPath: zipPath)
+        // 履歴の保存に失敗しても圧縮自体は成功しているので、完了表示は消さない
+        try? store.record(zipPath: zipPath, password: password, createdAt: Date())
+        history = store.records()
     }
 
     private func currentEncryption() -> ZipEncryption {
@@ -80,7 +130,8 @@ final class CompressionViewModel: ObservableObject {
         panel.allowedContentTypes = [.zip]
         panel.directoryURL = defaultURL.deletingLastPathComponent()
         panel.nameFieldStringValue = defaultURL.lastPathComponent
-        panel.title = "zipの保存先を選択"
+        panel.title = "zipの保存先とファイル名"
+        panel.prompt = "作成"
         return panel.runModal() == .OK ? panel.url : nil
     }
 }

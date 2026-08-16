@@ -8,7 +8,7 @@ public enum ZipEncryption: Equatable {
     /// 強度は高いが、受け取り側に7-Zip/Keka等が必要（macOS標準のunzipは開けない）。
     case aes256(password: String)
 
-    var password: String? {
+    public var password: String? {
         switch self {
         case .none: return nil
         case let .zipCrypto(password), let .aes256(password): return password

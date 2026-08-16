@@ -38,6 +38,17 @@ public final class HistoryStore {
         self.storedRecords = Self.load(from: fileURL)
     }
 
+    /// アプリ本番用。~/Library/Application Support/KantanZip/history.json に保存する。
+    public static let applicationDefault: HistoryStore = {
+        let directory = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("KantanZip", isDirectory: true)
+        return HistoryStore(
+            fileURL: directory.appendingPathComponent("history.json"),
+            vault: KeychainPasswordVault()
+        )
+    }()
+
     /// 新しい順に並んだ履歴
     public func records() -> [CompressionRecord] {
         storedRecords.sorted { $0.createdAt > $1.createdAt }
