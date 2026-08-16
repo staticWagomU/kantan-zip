@@ -10,7 +10,8 @@ public struct ZipCommand: Equatable {
     /// 入力ファイルの親をworkingDirectoryにしてファイル名だけを渡す。
     public static func build(inputs: [URL], output: URL, password: String?) -> ZipCommand {
         let workingDirectory = inputs[0].deletingLastPathComponent()
-        let arguments = ["-r", "-y", output.path] + inputs.map(\.lastPathComponent)
+        let passwordOptions = password.map { ["-P", $0] } ?? []
+        let arguments = ["-r", "-y"] + passwordOptions + [output.path] + inputs.map(\.lastPathComponent)
         return ZipCommand(workingDirectory: workingDirectory, arguments: arguments)
     }
 }
