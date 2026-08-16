@@ -24,4 +24,20 @@ final class ZipCommandTests: XCTestCase {
             ["-r", "-y", "-P", "himitsu123", "/Users/taro/Documents/report.zip", "report.txt"]
         )
     }
+
+    func test_複数ファイルとフォルダをまとめて1つのzipにする() {
+        let inputs = [
+            URL(fileURLWithPath: "/Users/taro/Documents/report.txt"),
+            URL(fileURLWithPath: "/Users/taro/Documents/photos", isDirectory: true),
+        ]
+        let output = URL(fileURLWithPath: "/Users/taro/Documents/アーカイブ.zip")
+
+        let command = ZipCommand.build(inputs: inputs, output: output, password: nil)
+
+        XCTAssertEqual(command.workingDirectory.path, "/Users/taro/Documents")
+        XCTAssertEqual(
+            command.arguments,
+            ["-r", "-y", "/Users/taro/Documents/アーカイブ.zip", "report.txt", "photos"]
+        )
+    }
 }
