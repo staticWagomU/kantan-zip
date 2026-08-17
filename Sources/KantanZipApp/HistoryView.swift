@@ -8,68 +8,94 @@ struct HistoryView: View {
     /// パスワードは既定で伏せ、明示的に押したものだけ表示する
     @State private var revealedIDs: Set<UUID> = []
     @State private var isConfirmingDeleteAll = false
+    @State private var copiedHint: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
-            if viewModel.history.isEmpty {
-                emptyState
-            } else {
-                list
-            }
-        }
-        .frame(width: 520, height: 420)
-    }
+        NavigationStack {
+            VStack(spacing: 0) {
+                Text("パスワードを忘れたときに確認できます")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
 
-    private var header: some View {
-        HStack {
-            Text("圧縮の履歴")
-                .font(.headline)
-            Spacer()
-            if !viewModel.history.isEmpty {
-                Button("すべて削除") { isConfirmingDeleteAll = true }
+                Divider()
+
+                if viewModel.history.isEmpty {
+                    emptyState
+                } else {
+                    list
+                }
+
+                if let copiedHint {
+                    Divider()
+                    Label(copiedHint, systemImage: "doc.on.clipboard")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                }
             }
-            Button("閉じる") { dismiss() }
-                .keyboardShortcut(.defaultAction)
-        }
-        .padding(12)
-        .confirmationDialog(
-            "履歴をすべて削除しますか？",
-            isPresented: $isConfirmingDeleteAll,
-            titleVisibility: .visible
-        ) {
-            Button("すべて削除", role: .destructive) {
-                viewModel.deleteAllHistory()
-                revealedIDs.removeAll()
+            .frame(width: 540, height: 440)
+            .navigationTitle("圧縮の履歴")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    if !viewModel.history.isEmpty {
+                        Button("すべて削除") { isConfirmingDeleteAll = true }
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("閉じる") { dismiss() }
+                        .keyboardShortcut(.defaultAction)
+                }
             }
-        } message: {
-            Text("保存されているパスワードも一緒に消えます。zipファイル自体は削除されません。")
+            .confirmationDialog(
+                "履歴をすべて削除しますか？",
+                isPresented: $isConfirmingDeleteAll,
+                titleVisibility: .visible
+            ) {
+                Button("すべて削除", role: .destructive) {
+                    viewModel.deleteAllHistory()
+                    revealedIDs.removeAll()
+                    copiedHint = nil
+                }
+            } message: {
+                Text("保存されているパスワードも一緒に消えます。すでに作ったzipファイル自体は消えません。")
+            }
         }
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             Image(systemName: "clock")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
             Text("まだ履歴がありません")
+                .font(.body.weight(.medium))
+            Text("zipを作ると、ここに記録されます。\nパスワードを忘れたときに見返せます。")
+                .font(.caption)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
     }
 
     private var list: some View {
         List(viewModel.history) { record in
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
                     Text(record.fileName)
                         .fontWeight(.medium)
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if !record.stillExists {
                         Text("移動/削除済み")
-                            .font(.caption)
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.secondary.opacity(0.15)))
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -78,17 +104,21 @@ struct HistoryView: View {
                         .foregroundStyle(.secondary)
                 }
                 passwordRow(for: record)
-            }
-            .padding(.vertical, 4)
-            .contextMenu {
-                if record.stillExists {
-                    Button("Finderで表示") { viewModel.revealInFinder(path: record.zipPath) }
+                HStack(spacing: 12) {
+                    if record.stillExists {
+                        Button("Finderで表示") {
+                            viewModel.revealInFinder(path: record.zipPath)
+                        }
+                        .controlSize(.small)
+                    }
+                    Button("この履歴を削除", role: .destructive) {
+                        viewModel.delete(record)
+                        revealedIDs.remove(record.id)
+                    }
+                    .controlSize(.small)
                 }
-                Button("この履歴を削除", role: .destructive) {
-                    viewModel.delete(record)
-                    revealedIDs.remove(record.id)
-                }
             }
+            .padding(.vertical, 6)
         }
     }
 
@@ -104,8 +134,11 @@ struct HistoryView: View {
                     Text(password)
                         .font(.system(.body, design: .monospaced))
                         .textSelection(.enabled)
-                    Button("コピー") { viewModel.copyToClipboard(password) }
-                        .controlSize(.small)
+                    Button("コピー") {
+                        viewModel.copyToClipboard(password)
+                        copiedHint = "パスワードをコピーしました"
+                    }
+                    .controlSize(.small)
                     Button("隠す") { revealedIDs.remove(record.id) }
                         .controlSize(.small)
                 } else {
