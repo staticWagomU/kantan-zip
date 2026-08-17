@@ -8,74 +8,53 @@ struct ContentView: View {
     @State private var isShowingAdvanced = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    switch viewModel.phase {
-                    case .done(let zipPath, let password):
-                        completionSection(zipPath: zipPath, password: password)
-                    case .failed(let message):
-                        failureSection(message: message)
-                    default:
-                        workingSections
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                if case let .done(zipPath, password) = viewModel.phase {
+                    successBanner(zipPath: zipPath, password: password)
                 }
-                .padding(20)
+                if case let .failed(message) = viewModel.phase {
+                    failureBanner(message: message)
+                }
+
+                fileSection
+                passwordSection
+                createSection
+                advancedSection
+                historyLink
+
+                if let hint = viewModel.clipboardHint {
+                    Label(hint, systemImage: "doc.on.clipboard")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .transition(.opacity)
+                }
             }
+            .padding(20)
+            .animation(.easeInOut(duration: 0.2), value: viewModel.clipboardHint)
         }
         .frame(width: 460, height: 560)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isShowingHistory = true
+                } label: {
+                    Label("履歴", systemImage: "clock.arrow.circlepath")
+                }
+                .help("過去に作ったzipのパスワードを確認できます")
+            }
+        }
         .sheet(isPresented: $isShowingHistory) {
             HistoryView(viewModel: viewModel)
         }
     }
 
-    // MARK: - Header
+    // MARK: - File
 
-    private var header: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("KantanZip")
-                    .font(.title2.weight(.semibold))
-                Text("パスワード付きzipをかんたんに作成")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button {
-                isShowingHistory = true
-            } label: {
-                Label("履歴", systemImage: "clock.arrow.circlepath")
-            }
-            .help("過去に作ったzipのパスワードを確認できます")
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-    }
-
-    // MARK: - Main working flow
-
-    private var workingSections: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            stepFileSelection
-            stepPassword
-            stepCreate
-            if let hint = viewModel.clipboardHint {
-                Label(hint, systemImage: "doc.on.clipboard")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .transition(.opacity)
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: viewModel.clipboardHint)
-    }
-
-    // MARK: Step 1 — files
-
-    private var stepFileSelection: some View {
+    private var fileSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            stepLabel(number: 1, title: "ファイルを選ぶ")
+            Text("ファイル")
+                .font(.headline)
 
             if viewModel.selectedURLs.isEmpty {
                 dropZone
@@ -97,14 +76,15 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
             Button("ファイルを選択…") { selectFiles() }
                 .controlSize(.large)
+                .disabled(viewModel.isCompressing)
         }
-        .frame(maxWidth: .infinity, minHeight: 168)
+        .frame(maxWidth: .infinity, minHeight: 150)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(isDropTargeted ? Color.accentColor.opacity(0.08) : Color.secondary.opacity(0.06))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(
                     isDropTargeted ? Color.accentColor : Color.secondary.opacity(0.35),
                     style: StrokeStyle(lineWidth: 2, dash: [7, 5])
@@ -166,10 +146,10 @@ struct ContentView: View {
                     .disabled(viewModel.isCompressing)
             }
         }
-        .padding(14)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.secondary.opacity(0.06))
         )
         .dropDestination(for: URL.self) { urls, _ in
@@ -178,14 +158,15 @@ struct ContentView: View {
         } isTargeted: { isDropTargeted = $0 }
     }
 
-    // MARK: Step 2 — password
+    // MARK: - Password
 
-    private var stepPassword: some View {
+    private var passwordSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            stepLabel(number: 2, title: "パスワードを決める")
+            Text("パスワード")
+                .font(.headline)
 
             Toggle(isOn: $viewModel.usePassword) {
-                Text("パスワードを付ける（おすすめ）")
+                Text("パスワードを付ける")
             }
             .disabled(viewModel.isCompressing)
             .onChange(of: viewModel.usePassword) { _ in
@@ -193,72 +174,44 @@ struct ContentView: View {
             }
 
             if viewModel.usePassword {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Group {
-                            if viewModel.isPasswordVisible {
-                                TextField("パスワードを入力", text: $viewModel.password)
-                            } else {
-                                SecureField("パスワードを入力", text: $viewModel.password)
-                            }
+                HStack(spacing: 8) {
+                    Group {
+                        if viewModel.isPasswordVisible {
+                            TextField("パスワードを入力", text: $viewModel.password)
+                        } else {
+                            SecureField("パスワードを入力", text: $viewModel.password)
                         }
-                        .textFieldStyle(.roundedBorder)
-                        .disabled(viewModel.isCompressing)
-                        .onChange(of: viewModel.password) { _ in
-                            viewModel.clearValidation()
-                        }
-
-                        Button {
-                            viewModel.isPasswordVisible.toggle()
-                        } label: {
-                            Image(systemName: viewModel.isPasswordVisible ? "eye.slash" : "eye")
-                        }
-                        .help(viewModel.isPasswordVisible ? "パスワードを隠す" : "パスワードを表示")
-                        .disabled(viewModel.isCompressing)
+                    }
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(viewModel.isCompressing)
+                    .onChange(of: viewModel.password) { _ in
+                        viewModel.clearValidation()
                     }
 
                     Button {
-                        viewModel.generatePassword()
+                        viewModel.isPasswordVisible.toggle()
                     } label: {
-                        Label("自動で作る（おすすめ）", systemImage: "key.fill")
-                            .frame(maxWidth: .infinity)
+                        Image(systemName: viewModel.isPasswordVisible ? "eye.slash" : "eye")
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
+                    .help(viewModel.isPasswordVisible ? "パスワードを隠す" : "パスワードを表示")
                     .disabled(viewModel.isCompressing)
-                    .help("安全なパスワードを作り、クリップボードにもコピーします")
-
-                    Text("作ったパスワードは相手に別途伝えてください。zipと同じメールに書くと意味がありません。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    DisclosureGroup("詳細な設定", isExpanded: $isShowingAdvanced) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Picker("開きやすさ", selection: $viewModel.useStrongEncryption) {
-                                Text("相手がそのまま開ける（おすすめ）").tag(false)
-                                Text("より強固な暗号（専用アプリが必要）").tag(true)
-                            }
-                            .pickerStyle(.radioGroup)
-                            .disabled(viewModel.isCompressing)
-                            .labelsHidden()
-
-                            Text(viewModel.useStrongEncryption
-                                 ? "強力な暗号化です。相手は 7-Zip や Keka などのアプリが必要で、Macの標準機能では開けません。"
-                                 : "受け取った人はダブルクリックで開けます（パスワードの入力は必要です）。")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(.top, 6)
-                    }
-                    .font(.callout)
                 }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.secondary.opacity(0.05))
-                )
+
+                Button {
+                    viewModel.generatePassword()
+                } label: {
+                    Label("自動で作る", systemImage: "key.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(viewModel.isCompressing)
+                .help("安全なパスワードを作り、クリップボードにもコピーします")
+
+                Text("作ったパスワードは相手に別途伝えてください。zipと同じメールに書くと意味がありません。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text("パスワードなしでも作れますが、誰でも中身を見られます。社外へ送るときはオンにしてください。")
                     .font(.caption)
@@ -268,20 +221,12 @@ struct ContentView: View {
         }
     }
 
-    // MARK: Step 3 — create
+    // MARK: - Create
 
-    private var stepCreate: some View {
+    private var createSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            stepLabel(number: 3, title: "zipを作成する")
-
-            Toggle("保存先とファイル名を毎回選ぶ", isOn: $askOutputLocation)
-                .disabled(viewModel.isCompressing)
-            Text(askOutputLocation
-                 ? "作成のたびに、保存場所と名前を確認します。"
-                 : "1件だけのときは、元のファイルと同じ場所に自動保存します。複数件のときは名前を確認します。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Text("作成")
+                .font(.headline)
 
             if let message = viewModel.validationMessage {
                 Label(message, systemImage: "exclamationmark.circle.fill")
@@ -300,6 +245,15 @@ struct ContentView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            case .done:
+                Text("上の案内からパスワードのコピーや Finder での確認ができます。続けて作るときは下のボタンを押してください。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("続けて作る") {
+                    viewModel.startAnother()
+                }
+                .controlSize(.large)
             default:
                 Button {
                     viewModel.createZip(alwaysAskOutputLocation: askOutputLocation)
@@ -318,60 +272,100 @@ struct ContentView: View {
         }
     }
 
-    // MARK: Completion / failure
+    // MARK: - Advanced (通常は隠す)
 
-    private func completionSection(zipPath: String, password: String?) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 10) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.green)
+    private var advancedSection: some View {
+        DisclosureGroup("詳細な設定", isExpanded: $isShowingAdvanced) {
+            VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("作成できました")
-                        .font(.title3.weight(.semibold))
-                    Text((zipPath as NSString).lastPathComponent)
-                        .font(.body)
+                    Toggle("保存先とファイル名を毎回選ぶ", isOn: $askOutputLocation)
+                        .disabled(viewModel.isCompressing)
+                    Text(askOutputLocation
+                         ? "作成のたびに、保存場所と名前を確認します。"
+                         : "1件だけのときは、元のファイルと同じ場所に自動保存します。複数件のときは名前を確認します。")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .truncationMode(.middle)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if viewModel.usePassword {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("開きやすさ")
+                            .font(.subheadline.weight(.medium))
+                        Picker("開きやすさ", selection: $viewModel.useStrongEncryption) {
+                            Text("相手がそのまま開ける").tag(false)
+                            Text("より強固な暗号（専用アプリが必要）").tag(true)
+                        }
+                        .pickerStyle(.radioGroup)
+                        .disabled(viewModel.isCompressing)
+                        .labelsHidden()
+
+                        Text(viewModel.useStrongEncryption
+                             ? "相手は 7-Zip や Keka などのアプリが必要で、Macの標準機能では開けません。"
+                             : "受け取った人はダブルクリックで開けます（パスワードの入力は必要です）。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
+            .padding(.top, 8)
+        }
+        .font(.callout)
+    }
+
+    private var historyLink: some View {
+        Button {
+            isShowingHistory = true
+        } label: {
+            Text("過去のパスワードを確認…")
+        }
+        .buttonStyle(.link)
+        .help("履歴を開きます")
+    }
+
+    // MARK: - Inline success / failure
+
+    private func successBanner(zipPath: String, password: String?) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text("作成できました")
+                    .font(.headline)
+                Spacer()
+            }
+
+            Text((zipPath as NSString).lastPathComponent)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .truncationMode(.middle)
 
             if let password, !password.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("パスワード")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     HStack(spacing: 8) {
                         Text(password)
-                            .font(.system(.title3, design: .monospaced))
+                            .font(.system(.body, design: .monospaced))
                             .textSelection(.enabled)
                         Spacer()
                         Button("コピー") {
                             viewModel.copyPasswordAgain(password)
                         }
-                        .controlSize(.large)
                     }
-                    .padding(12)
+                    .padding(10)
                     .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.secondary.opacity(0.08))
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.primary.opacity(0.05))
                     )
 
-                    Label(
-                        "このパスワードはzipとは別の手段（チャットや電話など）で伝えてください。",
-                        systemImage: "info.circle"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text("このパスワードはzipとは別の手段（チャットや電話など）で伝えてください。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-
-            if let hint = viewModel.clipboardHint {
-                Label(hint, systemImage: "doc.on.clipboard")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             HStack(spacing: 10) {
@@ -379,34 +373,40 @@ struct ContentView: View {
                     viewModel.revealInFinder(path: zipPath)
                 } label: {
                     Label("Finderで表示", systemImage: "folder")
-                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .controlSize(.large)
 
-                Button("続けて作る") {
-                    viewModel.startAnother()
+                Button {
+                    isShowingHistory = true
+                } label: {
+                    Text("履歴を開く")
                 }
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
             }
 
-            Text("パスワードを忘れたときは、右上の「履歴」から確認できます。")
+            Text("パスワードを忘れたときは、ツールバーの「履歴」か下のリンクからも確認できます。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.green.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.green.opacity(0.25))
+        )
     }
 
-    private func failureSection(message: String) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 10) {
+    private func failureBanner(message: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.title)
                     .foregroundStyle(.orange)
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("作成できませんでした")
-                        .font(.title3.weight(.semibold))
+                        .font(.headline)
                     Text(message)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -417,31 +417,23 @@ struct ContentView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            HStack {
-                Button("やり直す") {
-                    viewModel.dismissFailure()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                Spacer()
+            Button("閉じる") {
+                viewModel.dismissFailure()
             }
         }
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.orange.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.orange.opacity(0.25))
+        )
     }
 
     // MARK: - Helpers
-
-    private func stepLabel(number: Int, title: String) -> some View {
-        HStack(spacing: 8) {
-            Text("\(number)")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 22, height: 22)
-                .background(Circle().fill(Color.accentColor))
-            Text(title)
-                .font(.headline)
-        }
-    }
 
     private func selectFiles(appending: Bool = false) {
         let panel = NSOpenPanel()

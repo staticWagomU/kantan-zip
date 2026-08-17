@@ -11,55 +11,58 @@ struct HistoryView: View {
     @State private var copiedHint: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
-            if viewModel.history.isEmpty {
-                emptyState
-            } else {
-                list
-            }
-            if let copiedHint {
-                Divider()
-                Label(copiedHint, systemImage: "doc.on.clipboard")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-            }
-        }
-        .frame(width: 540, height: 440)
-    }
-
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("圧縮の履歴")
-                    .font(.headline)
+        NavigationStack {
+            VStack(spacing: 0) {
                 Text("パスワードを忘れたときに確認できます")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+
+                Divider()
+
+                if viewModel.history.isEmpty {
+                    emptyState
+                } else {
+                    list
+                }
+
+                if let copiedHint {
+                    Divider()
+                    Label(copiedHint, systemImage: "doc.on.clipboard")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                }
             }
-            Spacer()
-            if !viewModel.history.isEmpty {
-                Button("すべて削除") { isConfirmingDeleteAll = true }
+            .frame(width: 540, height: 440)
+            .navigationTitle("圧縮の履歴")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    if !viewModel.history.isEmpty {
+                        Button("すべて削除") { isConfirmingDeleteAll = true }
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("閉じる") { dismiss() }
+                        .keyboardShortcut(.defaultAction)
+                }
             }
-            Button("閉じる") { dismiss() }
-                .keyboardShortcut(.defaultAction)
-        }
-        .padding(14)
-        .confirmationDialog(
-            "履歴をすべて削除しますか？",
-            isPresented: $isConfirmingDeleteAll,
-            titleVisibility: .visible
-        ) {
-            Button("すべて削除", role: .destructive) {
-                viewModel.deleteAllHistory()
-                revealedIDs.removeAll()
-                copiedHint = nil
+            .confirmationDialog(
+                "履歴をすべて削除しますか？",
+                isPresented: $isConfirmingDeleteAll,
+                titleVisibility: .visible
+            ) {
+                Button("すべて削除", role: .destructive) {
+                    viewModel.deleteAllHistory()
+                    revealedIDs.removeAll()
+                    copiedHint = nil
+                }
+            } message: {
+                Text("保存されているパスワードも一緒に消えます。すでに作ったzipファイル自体は消えません。")
             }
-        } message: {
-            Text("保存されているパスワードも一緒に消えます。すでに作ったzipファイル自体は消えません。")
         }
     }
 

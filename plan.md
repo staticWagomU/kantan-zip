@@ -63,9 +63,9 @@ Sources/
     ZipService.swift            # 上記を束ねるファサード
   KantanZipApp/         # SwiftUI層（executable）
     KantanZipApp.swift
-    ContentView.swift           # 3ステップUI（選択→パスワード→作成）+ 完了画面
+    ContentView.swift           # セクションUI（選択→パスワード→作成）+ インライン完了
     CompressionViewModel.swift  # 選択状態と圧縮の状態遷移
-    HistoryView.swift           # 履歴・パスワード確認
+    HistoryView.swift           # 履歴・パスワード確認（シート）
     SevenZipLocator.swift       # バンドル内/開発時の7zzパス解決
 Tests/
   KantanZipCoreTests/
