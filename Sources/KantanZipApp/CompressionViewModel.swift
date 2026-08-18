@@ -57,11 +57,16 @@ final class CompressionViewModel: ObservableObject {
     func setSelectedURLs(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
         if case .compressing = phase { return }
+        let isNextJob: Bool = {
+            if case .done = phase { return true }
+            return false
+        }()
         selectedURLs = urls
         validationMessage = nil
         // 完了／失敗のあとで選び直したら、次の作業に入れるよう状態を戻す
         if case .done = phase { phase = .idle }
         if case .failed = phase { phase = .idle }
+        applyAutofill(isNextJob: isNextJob)
     }
 
     func clearSelection() {
@@ -80,7 +85,7 @@ final class CompressionViewModel: ObservableObject {
         if case .compressing = phase { return }
 
         if usePassword && password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            validationMessage = "パスワードを入力するか、「自動で作る」を押してください。"
+            validationMessage = "パスワードを入力するか、「自動で作る」で作り直してください。"
             return
         }
         validationMessage = nil
@@ -127,9 +132,11 @@ final class CompressionViewModel: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     }
 
-    /// 完了画面から次の圧縮へ進む。パスワードは残して再入力の手間を減らす。
+    /// 完了画面から次の圧縮へ進む。パスワードは捨て、次のファイル選択で作り直す。
     func startAnother() {
         selectedURLs = []
+        password = ""
+        isPasswordVisible = false
         validationMessage = nil
         clipboardHint = nil
         phase = .idle
@@ -141,11 +148,14 @@ final class CompressionViewModel: ObservableObject {
     }
 
     func generatePassword() {
-        password = PasswordGenerator.generate()
-        usePassword = true
-        isPasswordVisible = true
-        clearValidation()
+        applyGeneratedPassword()
         copyToClipboard(password, hint: "パスワードをコピーしました。相手には別の方法で伝えてください。")
+    }
+
+    func copyCurrentPassword() {
+        let trimmed = password.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        copyToClipboard(trimmed, hint: "パスワードをコピーしました。相手には別の方法で伝えてください。")
     }
 
     func clearValidation() {
@@ -183,6 +193,25 @@ final class CompressionViewModel: ObservableObject {
     }
 
     // MARK: - 内部
+
+    /// 欄が空のときだけ生成する。追加選択や選び直しでは既存の値を守る。
+    /// クリップボードには入れない（ドロップのたびにコピーすると他の文面を上書きするため）。
+    private func applyAutofill(isNextJob: Bool) {
+        let next = PasswordAutofill.afterSelectingFiles(
+            usePassword: usePassword,
+            current: .init(password: password, isVisible: isPasswordVisible),
+            isNextJob: isNextJob
+        )
+        password = next.password
+        isPasswordVisible = next.isVisible
+    }
+
+    private func applyGeneratedPassword() {
+        password = PasswordGenerator.generate()
+        usePassword = true
+        isPasswordVisible = true
+        clearValidation()
+    }
 
     private func finish(zipPath: String, password: String?) {
         phase = .done(zipPath: zipPath, password: password)
