@@ -197,16 +197,29 @@ struct ContentView: View {
                     .disabled(viewModel.isCompressing)
                 }
 
-                Button {
-                    viewModel.generatePassword()
-                } label: {
-                    Label("自動で作る", systemImage: "key.fill")
-                        .frame(maxWidth: .infinity)
+                HStack(spacing: 8) {
+                    Button {
+                        viewModel.generatePassword()
+                    } label: {
+                        Label("自動で作る", systemImage: "key.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .help("新しいパスワードを作り、クリップボードにもコピーします")
+
+                    Button("コピー") {
+                        viewModel.copyCurrentPassword()
+                    }
+                    .disabled(viewModel.password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .help("いまのパスワードをコピーします")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .disabled(viewModel.isCompressing)
-                .help("安全なパスワードを作り、クリップボードにもコピーします")
+
+                Text("ファイルを選ぶとパスワードが入ります。作り直すときは「自動で作る」を押してください。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("作ったパスワードは相手に別途伝えてください。zipと同じメールに書くと意味がありません。")
                     .font(.caption)
